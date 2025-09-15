@@ -2,6 +2,9 @@ from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 from aiogram import Bot, Dispatcher
 from aiogram.types import BotCommand, BotCommandScopeDefault
+from aiogram.fsm.state import State, StatesGroup
+
+from message_process import MessageProcess
 import logging
 from decouple import config
 
@@ -25,6 +28,15 @@ KB_SEND_MESSAGE = {
 KB_OTHER_MENU = {
     "music": "🎵 Музыка", "snake": "🐍 Игра змейка", "back": "<- Назад"
 }
+
+message_process_util = MessageProcess()
+
+
+
+class Form_Session(StatesGroup):
+    SENDING = State()
+    OTHER_MENU = State()
+    MAIN_MENU = State()
 
 def get_readme_text():
     with open("README.md", "r", encoding="utf-8") as readme:

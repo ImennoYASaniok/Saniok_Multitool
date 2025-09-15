@@ -1,40 +1,36 @@
-from aiogram import Router, F
+from aiogram import F, Router
 from aiogram.filters import CommandStart, Command, or_f
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
-from aiogram.fsm.state import State, StatesGroup
 
-from message_process import MessageProcess
-from keyboards.keyboards import kb_main, kb_send_message
+from keyboards.keyboards import kb_menu, kb_send_message
 from bot_session import KB_MENU, MESSAGE_INFO, MESSAGE_CONTACTS, KB_SEND_MESSAGE
-from main import bot
-from handlers.handlers_other_menu import func_menu
+from bot_session import bot
+from bot_session import message_process_util
+from bot_session import Form_Session
 
 import asyncio
 
-message_process_util = MessageProcess()
+menu_router = Router()
 
-start_router = Router()
+async def func_menu(message: Message, state: FSMContext):
+    await state.set_state(Form_Session.MAIN_MENU)
+    await message.answer(message_process_util.get_message("menu"), reply_markup=kb_menu(message.from_user.id))
 
-class Form_Session(StatesGroup):
-    SENDING = State()
-    OTHER_MENU = State()
-    MAIN_MENU = State()
-
-@start_router.message(CommandStart())
+@menu_router.message(CommandStart())
 async def handle_start(message: Message, state: FSMContext):
     await message.answer(message_process_util.get_message("hello").format(message.from_user.first_name))
     await func_menu(message, state)
 
-@start_router.message(or_f(Command("info"), F.text == str(KB_MENU["info"])))
+@menu_router.message(or_f(Command("info"), F.text == str(KB_MENU["info"])))
 async def handle_info(message: Message):
-    await message.answer(MESSAGE_INFO, reply_markup=kb_main(message.from_user.id))
+    await message.answer(MESSAGE_INFO, reply_markup=kb_menu(message.from_user.id))
 
-@start_router.message(or_f(Command("contacts"), F.text == str(KB_MENU["contacts"])))
+@menu_router.message(or_f(Command("contacts"), F.text == str(KB_MENU["contacts"])))
 async def handle_contacts(message: Message):
-    await message.answer(MESSAGE_CONTACTS)
+    await message.answer(MESSAGE_CONTACTS, reply_markup=kb_menu(message.from_user.id))
 
-@start_router.message(or_f(Command("clear"), F.text == str(KB_MENU["clear"])))
+@menu_router.message(or_f(Command("clear"), F.text == str(KB_MENU["clear"])))
 async def handle_clear(message: Message, state: FSMContext):
     chat_id = message.chat.id
     curr_message_id = message.message_id
@@ -74,4 +70,5 @@ async def load_clear(load_message, chat_id, load_message_text):
             except Exception as e:
                 print(f"Ошибка при обновлении сообщения: {e}")
     except asyncio.CancelledError:
-        print("❌ Отображение загрузки отменено")
+        pass
+        # print("❌ Отображение загрузки отменено")
