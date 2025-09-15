@@ -20,5 +20,5 @@ if __name__ == "__main__":
     db_file = os.path.join(
         os.path.abspath(os.path.dirname(__file__)), 'db', 'db.sqlite'
     )
-    db_session.my_global_init(os.environ.get('DATABASE_URI', f'{db_file}'))
+    db_session.my_global_init(os.environ.get('DATABASE_URI', db_file))
     asyncio.run(start_bot())
