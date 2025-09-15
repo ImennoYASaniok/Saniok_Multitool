@@ -1,23 +1,20 @@
 import asyncio
-from aiogram.enums import ParseMode
-from aiogram.client.default import DefaultBotProperties
-from aiogram import Bot, Dispatcher
-from decouple import config
-import logging
 
-from handlers.start import start_router
+from handlers.handlers_menu import start_router
+from bot_session import dp, bot, set_commands
 
-TOKEN = config('TOKEN')
+from db import db_session
+import os
 
-bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-dp = Dispatcher()
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
-async def main():
+async def start_bot():
     dp.include_router(start_router)
     await bot.delete_webhook(drop_pending_updates=True)
+    await set_commands()
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    db_file = os.path.join(
+        os.path.abspath(os.path.dirname(__file__)), 'db', 'kon.sqlite'
+    )
+    db_session.my_global_init(os.environ.get('DATABASE_URI', f'{db_file}'))
+    asyncio.run(start_bot())

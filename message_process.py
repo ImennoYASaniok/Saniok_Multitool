@@ -52,5 +52,4 @@ class MessageProcess:
 
 if __name__ == "__main__":
     input_message = InputMessage()
-    input_message.input_message("/start", "handlers/messages.json")
-    # {"empty": "empty"}
+    input_message.input_message("in_develop", "handlers/messages.json")
