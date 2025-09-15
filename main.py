@@ -26,9 +26,12 @@ def handle_async_exception(loop, context):
     logger.exception(f"Необработанное исключение в asyncio: {msg}")
 
 async def start_bot():
-    dp.include_router(menu_router)
-    dp.include_router(other_menu_router)
-    dp.include_router(send_message_router)
+    if menu_router.parent_router is None:
+        dp.include_router(menu_router)
+    if other_menu_router.parent_router is None:
+        dp.include_router(other_menu_router)
+    if send_message_router.parent_router is None:
+        dp.include_router(send_message_router)
     await bot.delete_webhook(drop_pending_updates=True)
     await set_commands()
     try:
@@ -52,7 +55,6 @@ if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     loop.set_exception_handler(handle_async_exception)
     loop.create_task(web._run_app(app, port=port, print=None))
-    loop.run_until_complete(start_bot())
     try:
         loop.run_until_complete(start_bot())
     except Exception:
