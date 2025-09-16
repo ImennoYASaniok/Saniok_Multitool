@@ -1,8 +1,9 @@
 import logging
-from aiohttp import web
 
 import asyncio
 import os
+
+from aiohttp import web
 
 from handlers.handlers_menu import menu_router
 from handlers.handlers_other_menu import other_menu_router
@@ -21,10 +22,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def handle_async_exception(loop, context):
-    msg = context.get("exception", context["message"])
-    logger.exception(f"Необработанное исключение в asyncio: {msg}")
-
 async def start_bot():
     if menu_router.parent_router is None:
         dp.include_router(menu_router)
@@ -32,30 +29,35 @@ async def start_bot():
         dp.include_router(other_menu_router)
     if send_message_router.parent_router is None:
         dp.include_router(send_message_router)
-    await bot.delete_webhook(drop_pending_updates=True)
-    await set_commands()
-    try:
-        await dp.start_polling(bot, skip_updates=True)
-    except Exception as e:
-        print("Ошибка бота:", e)
 
-async def handle(request):
-    return web.Response(text="Bot is running!")
+    await bot.set_webhook(
+        url=os.environ["WEBHOOK_URL"],
+        drop_pending_updates=True
+    )
+    await set_commands()
+    logger.info("Webhook запущен")
+
+async def shutdown_bot():
+    logger.info("Webhook выключается и сессия закрывается")
+    await bot.delete_webhook()
+    await bot.session.close()
+
+async def handle_webhook(request: web.Request):
+    try:
+        data = await request.json()
+        await dp.feed_webhook_update(bot, data)
+        return web.Response()
+    except Exception as e:
+        logger.exception(f"Ошибка запуска webhook: {e}")
+        return web.Response(status=500)
 
 if __name__ == "__main__":
-    db_file = os.path.join(
-        os.path.abspath(os.path.dirname(__file__)), 'db', 'db.sqlite'
-    )
+    db_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'db', 'db.sqlite')
     db_session.my_global_init(os.environ.get('DATABASE_URI', db_file))
 
-    port = int(os.environ.get("PORT", 10000))
+    port = int(os.environ.get('PORT', 8080))
     app = web.Application()
-    app.router.add_get("/", handle)
-
-    loop = asyncio.get_event_loop()
-    loop.set_exception_handler(handle_async_exception)
-    loop.create_task(web._run_app(app, port=port, print=None))
-    try:
-        loop.run_until_complete(start_bot())
-    except Exception:
-        logger.exception("Главный цикл сервера упал:")
+    app.router.add_post("/webhook", handle_webhook)
+    app.on_startup.append(start_bot)
+    app.on_shutdown.append(shutdown_bot)
+    web.run_app(app, host='0.0.0.0', port=port)
