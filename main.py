@@ -22,7 +22,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-async def start_bot():
+async def start_bot(app):
     if menu_router.parent_router is None:
         dp.include_router(menu_router)
     if other_menu_router.parent_router is None:
@@ -40,7 +40,7 @@ async def start_bot():
     await set_commands()
     logger.info("Webhook запущен")
 
-async def shutdown_bot():
+async def shutdown_bot(app):
     logger.info("Webhook выключается и сессия закрывается")
     await bot.delete_webhook()
     await bot.session.close()
