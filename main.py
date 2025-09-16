@@ -2,6 +2,7 @@ import logging
 
 import asyncio
 import os
+from decouple import config
 
 from aiohttp import web
 
@@ -30,11 +31,8 @@ async def start_bot(app):
     if send_message_router.parent_router is None:
         dp.include_router(send_message_router)
 
-
-    WEBHOOK_URL = os.environ["WEBHOOK_URL"]
-    logger.info(f"Webhook URL: {WEBHOOK_URL}")
     await bot.set_webhook(
-        url=WEBHOOK_URL,
+        url=config('WEBHOOK_URL'),
         drop_pending_updates=True
     )
     await set_commands()
