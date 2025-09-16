@@ -30,8 +30,11 @@ async def start_bot():
     if send_message_router.parent_router is None:
         dp.include_router(send_message_router)
 
+
+    WEBHOOK_URL = os.environ["WEBHOOK_URL"]
+    logger.info(f"Webhook URL: {WEBHOOK_URL}")
     await bot.set_webhook(
-        url=os.environ["WEBHOOK_URL"],
+        url=WEBHOOK_URL,
         drop_pending_updates=True
     )
     await set_commands()
@@ -51,6 +54,9 @@ async def handle_webhook(request: web.Request):
         logger.exception(f"Ошибка запуска webhook: {e}")
         return web.Response(status=500)
 
+async def handle_ping(request):
+    return web.Response(text="OK")
+
 if __name__ == "__main__":
     db_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'db', 'db.sqlite')
     db_session.my_global_init(os.environ.get('DATABASE_URI', db_file))
@@ -60,4 +66,5 @@ if __name__ == "__main__":
     app.router.add_post("/webhook", handle_webhook)
     app.on_startup.append(start_bot)
     app.on_shutdown.append(shutdown_bot)
+    app.router.add_get("/", handle_ping)
     web.run_app(app, host='0.0.0.0', port=port)
