@@ -1,10 +1,10 @@
 from aiogram import Router, F
 from aiogram.filters import Command, or_f
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 
 from db.db_session import create_session
-from keyboards.keyboards import kb_send_message
+from keyboards.keyboards import kb_message
 from bot_session import KB_MENU, KB_SEND_MESSAGE
 from bot_session import message_process_util
 from bot_session import Form_Session
@@ -16,14 +16,15 @@ send_message_router = Router()
 @send_message_router.message(or_f(Command("send_message"), F.text == str(KB_MENU["send_message"])))
 async def handle_typing_message(message: Message, state: FSMContext):
     await state.set_state(Form_Session.SENDING)
-    await message.answer(message_process_util.get_message("send_message"), reply_markup=kb_send_message())
+    await message.answer(message_process_util.get_message("send_message"), reply_markup=kb_message())
 
-@send_message_router.message(Form_Session.SENDING, F.text == str(KB_MENU["send_message"]))
-async def handle_cancel_message(message: Message, state: FSMContext):
+@send_message_router.callback_query(Form_Session.SENDING, lambda x: x.data == str(KB_SEND_MESSAGE["cancel"]["command"]))
+async def handle_cancel_message(callback: CallbackQuery, state: FSMContext):
     print("Письмо отменено")
     await state.set_state(Form_Session.MAIN_MENU)
-    await message.answer(message_process_util.get_message("cancel"))
-    await func_menu(message, state)
+    await callback.message.answer(message_process_util.get_message("cancel"))
+    await func_menu(callback.message, state)
+    await callback.answer()
 
 @send_message_router.message(Form_Session.SENDING)
 async def handle_send_message(message: Message, state: FSMContext):

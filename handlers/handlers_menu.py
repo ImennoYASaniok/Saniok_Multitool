@@ -3,7 +3,7 @@ from aiogram.filters import CommandStart, Command, or_f
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
-from keyboards.keyboards import kb_menu, kb_send_message
+from keyboards.keyboards import kb_menu
 from bot_session import KB_MENU, MESSAGE_INFO, MESSAGE_CONTACTS, KB_SEND_MESSAGE
 from bot_session import bot
 from bot_session import message_process_util

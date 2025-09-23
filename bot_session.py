@@ -8,10 +8,10 @@ from message_process import MessageProcess
 import logging
 from decouple import config
 
-TOKEN = config('TOKEN')
+TYPE_TOKEN = 'EXTRA_TOKEN' # TOKEN
 ADMINS = list(map(int, config('ADMINS').split(',')))
 
-bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+bot = Bot(token=config(TYPE_TOKEN), default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -23,10 +23,20 @@ KB_MENU = {
     "other": "Дополнительно", "admin": "⚙️ Админ панель"
 }
 KB_SEND_MESSAGE = {
-    "cancel": "❌ Отмена"
+    "cancel": {"text": "❌ Отмена", "command": "cancel_message"}
 }
 KB_OTHER_MENU = {
-    "music": "🎵 Музыка", "snake": "🐍 Игра змейка", "back": "<- Назад"
+    "music": "🎵 Музыка", "snake": "🐍 Игра змейка", "back": "<= Назад"
+}
+KB_SNAKE_MENU = {
+    "play": "Играть", "back": "<= Назад"
+}
+KB_SNAKE_PLAY = {
+    "back": {"text": "<=", "command": "back"},
+    "up": {"text": "⬆️", "command": "up"},
+    "down": {"text": "⬇️", "command": "down"},
+    "left": {"text": "⬅️", "command": "left"},
+    "right": {"text": "➡️", "command": "right"},
 }
 
 message_process_util = MessageProcess()
@@ -37,6 +47,8 @@ class Form_Session(StatesGroup):
     SENDING = State()
     OTHER_MENU = State()
     MAIN_MENU = State()
+    SNAKE_MENU = State()
+    SNAKE_PLAY = State()
 
 def get_readme_text():
     with open("README.md", "r", encoding="utf-8") as readme:
