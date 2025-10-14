@@ -6,12 +6,9 @@ from aiogram.fsm.state import State, StatesGroup
 
 from message_process import MessageProcess
 import logging
-from decouple import config
+from consts import TOKEN, ADMINS, TYPE_TOKEN
 
-TYPE_TOKEN = 'EXTRA_TOKEN' # TOKEN
-ADMINS = list(map(int, config('ADMINS').split(',')))
-
-bot = Bot(token=config(TYPE_TOKEN), default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -29,7 +26,7 @@ KB_OTHER_MENU = {
     "music": "🎵 Музыка", "snake": "🐍 Игра змейка", "back": "<= Назад"
 }
 KB_SNAKE_MENU = {
-    "play": "Играть", "back": "<= Назад"
+    "play": "Играть", "back": "<= Назад", "settings": "⚙️ Настройки"
 }
 KB_SNAKE_PLAY = {
     "back": {"text": "<=", "command": "back"},
@@ -38,10 +35,15 @@ KB_SNAKE_PLAY = {
     "left": {"text": "⬅️", "command": "left"},
     "right": {"text": "➡️", "command": "right"},
 }
+KB_SNAKE_SETTINGS = {
+    "dead_border": {"text": "Смерть от границ", "value": False, "command": "dead_border"},
+    "color_snake": {"text": "Цвет змейки", "type": "", "type_value": {"синий": "🔵🟦", "фиолетовый": "🟣🟪", "жёлтый": "🟡🟨", "зелёный": "🟢🟩"}, "command": "color_snake"},
+    "size_zone": {"text": "Размер поля", "type": "", "type_value": {"маленький": [6, 6], "средний": [11, 11], "большой": [16, 16]}, "command": "size_zone"},
+    "symbol_zone": {"text": "Символ поля", "type": "", "type_value": {"⬛️": "⬛️", "..": "..", "░░": "░░"}, "command": "symbol_zone"},
+    "back": {"text": "<= Назад", "command": "back"},
+}
 
 message_process_util = MessageProcess()
-
-
 
 class Form_Session(StatesGroup):
     SENDING = State()
@@ -49,6 +51,7 @@ class Form_Session(StatesGroup):
     MAIN_MENU = State()
     SNAKE_MENU = State()
     SNAKE_PLAY = State()
+    SNAKE_SETTINGS = State()
 
 def get_readme_text():
     with open("README.md", "r", encoding="utf-8") as readme:

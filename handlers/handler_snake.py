@@ -5,11 +5,9 @@ from aiogram.filters import Command, or_f
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 
-from keyboards.keyboards import kb_other_menu, kb_snake_menu, kb_snake_play
-from bot_session import bot
-from bot_session import KB_OTHER_MENU, KB_SEND_MESSAGE, KB_SNAKE_MENU, KB_SNAKE_PLAY, logger
-from bot_session import message_process_util
-from bot_session import Form_Session
+from keyboards.keyboards import kb_other_menu, kb_snake_menu, kb_snake_play, kb_snake_settings
+from bot_session import bot, logger, message_process_util, Form_Session
+from bot_session import KB_OTHER_MENU, KB_SEND_MESSAGE, KB_SNAKE_MENU, KB_SNAKE_PLAY, KB_SNAKE_SETTINGS
 from handlers.handlers_other_menu import fun_menu_other
 
 from db.db_session import create_session
@@ -19,14 +17,16 @@ from random import choice
 
 class Snake:
     def __init__(self):
+        self.TIME = 1
+        snake = kb_snake_settings.buttons["color_snake"].get_value()
         self.SYMBOLS = {
-            "zone": "##",
-            "snake_head": "🟠",
-            "snake_body": "🟧",
+            "zone": kb_snake_settings.buttons["symbol_zone"].get_value(), # "##",
+            "snake_head": snake[0],
+            "snake_body": snake[1],
             "apple": "🍎"
         }
 
-        self.w_zone, self.h_zone = 10, 10
+        self.w_zone, self.h_zone = kb_snake_settings.buttons["size_zone"].get_value()
         self.zone = self._zone_clear()
 
         self.snake_dir = "up"
@@ -39,22 +39,50 @@ class Snake:
         return [[self.SYMBOLS["zone"]] * self.w_zone for _ in range(self.h_zone)]
 
     def _apple_spawn(self) -> [int, int]:
-        return [choice(list(filter(lambda x: x not in list(map(lambda c: c[0], self.snake_coords)), range(0, self.w_zone)))),
-                choice(list(filter(lambda y: y not in list(map(lambda c: c[1], self.snake_coords)), range(0, self.h_zone))))]
+        return choice(list(filter(lambda xy: xy not in self.snake_coords, [list(map(int, xy.split("|"))) for xy in " ".join([" ".join([f"{x}|{y}" for y in range(self.h_zone)]) for x in range(self.w_zone)]).split(" ")])))
 
     def get_screen(self) -> str:
-        return f"Текущий результат {self.snake_length}\n\n" + "\n".join(["".join(row) for row in self.zone])
+        return message_process_util.get_message("snake_play") + f"\nТекущий результат {self.snake_length}\n\n" + "\n".join(["".join(row) for row in self.zone])
 
     def _is_alive(self) -> bool:
         head_coords = self.snake_coords[0]
-        if 0 <= head_coords[0] <= self.w_zone - 1 and 0 <= head_coords[1] <= self.h_zone - 1:
-            return True
+        snake_interaction = True not in list(map(lambda coords: head_coords == coords, self.snake_coords[1:]))
+        if kb_snake_settings.buttons["dead_border"].get_value():
+            return snake_interaction and (0 <= head_coords[0] <= self.w_zone - 1) and (0 <= head_coords[1] <= self.h_zone - 1)
         else:
-            return False
+            return snake_interaction
+
+    def _move_across_border(self):
+        if not kb_snake_settings.buttons["dead_border"].get_value():
+            head_coords = self.snake_coords[0]
+            if 0 > head_coords[0]:
+                self.snake_coords[0][0] = self.w_zone - 1
+            elif head_coords[0] > self.w_zone - 1:
+                self.snake_coords[0][0] = 0
+            if 0 > head_coords[1]:
+                self.snake_coords[0][1] = self.h_zone - 1
+            elif head_coords[1] > self.h_zone - 1:
+                self.snake_coords[0][1] = 0
+
+    def _apple_eat(self):
+        head_coords = self.snake_coords[0]
+        if head_coords[0] == self.apple_coords[0] and head_coords[1] == self.apple_coords[1]:
+            self.snake_length += 1
+            tail_coords = self.snake_coords[-1].copy()
+            if self.snake_dir == "up":
+                tail_coords[1] += 1
+            elif self.snake_dir == "down":
+                tail_coords[1] -= 1
+            elif self.snake_dir == "left":
+                tail_coords[0] += 1
+            elif self.snake_dir == "right":
+                tail_coords[0] -= 1
+            self.snake_coords.append(tail_coords)
+            self.apple_coords = self._apple_spawn()
 
     def _move_snake(self):
         new_head_coords = self.snake_coords[0].copy()
-        if self.snake_dir == "up":
+        if self.snake_dir == "up" :
             new_head_coords[1] -= 1
         elif self.snake_dir == "down":
             new_head_coords[1] += 1
@@ -68,15 +96,18 @@ class Snake:
         self.snake_coords = new_coords.copy()
 
     async def run_screen(self, message, state, message_game_id, chat_id):
+        print(self._is_alive())
         try:
             while self._is_alive():
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(self.TIME)
                 try:
                     self._move_snake()
-                    # print("snake:", self.snake_coords)
-                    # print("apple:", self.apple_coords)
+                    self._move_across_border()
+                    self._apple_eat()
+                    print("snake_head:", self.snake_coords[0])
+                    print("apple:", self.apple_coords)
                     # print("zone:", self.w_zone, self.h_zone)
-                    # print()
+                    print()
                     self.update_screen()
                     await bot.edit_message_text(
                         chat_id=chat_id,
@@ -91,24 +122,24 @@ class Snake:
             await func_snake_menu(message, state)
         except asyncio.CancelledError:
             logger.info("Игра завершена")
+        except Exception as e:
+            logger.error(f"Ошибка при работе асинх функции: {e}")
 
     def update_screen(self):
         self.zone = self._zone_clear()
-        print(self.w_zone, self.h_zone, self.apple_coords[1], self.apple_coords[0])
         self.zone[self.apple_coords[1]][self.apple_coords[0]] = self.SYMBOLS["apple"]
-        print(self.w_zone, self.h_zone, self.snake_coords[0][1], self.snake_coords[0][0])
         self.zone[self.snake_coords[0][1]][self.snake_coords[0][0]] = self.SYMBOLS["snake_head"]
-        print("INTO")
         for coords in self.snake_coords[1:]:
             self.zone[coords[1]][coords[0]] = self.SYMBOLS["snake_body"]
 
 snake_task = None
-snake = Snake()
 
 snake_router = Router()
 
+# Меню
 async def func_snake_menu(message: Message, state: FSMContext):
     global snake_task
+    print(snake_task)
     if snake_task:
         snake_task.cancel()
     await state.set_state(Form_Session.SNAKE_MENU)
@@ -122,6 +153,45 @@ async def handle_snake_menu(message: Message, state: FSMContext):
 async def handle_snake_back(message: Message, state: FSMContext):
     await fun_menu_other(message, state)
 
+# Настройки
+async def func_snake_settings(message: Message, state: FSMContext):
+    await state.set_state(Form_Session.SNAKE_SETTINGS)
+    await message.answer(message_process_util.get_message("snake_settings"), reply_markup=kb_snake_settings.get_keyboard())
+
+@snake_router.message(Form_Session.SNAKE_MENU, F.text == str(KB_SNAKE_MENU["settings"]))
+async def handle_snake_settings(message: Message, state: FSMContext):
+    await func_snake_settings(message, state)
+
+@snake_router.callback_query(Form_Session.SNAKE_SETTINGS, lambda x: x.data == KB_SNAKE_SETTINGS["dead_border"]["command"])
+async def handle_snake_settings_dead_border(callback: CallbackQuery, state: FSMContext):
+    kb_snake_settings.buttons["dead_border"].change_value()
+    await func_snake_settings(callback.message, state)
+    await callback.answer()
+
+@snake_router.callback_query(Form_Session.SNAKE_SETTINGS, lambda x: x.data == KB_SNAKE_SETTINGS["color_snake"]["command"])
+async def handle_snake_settings_color_snake(callback: CallbackQuery, state: FSMContext):
+    kb_snake_settings.buttons["color_snake"].change_type()
+    await func_snake_settings(callback.message, state)
+    await callback.answer()
+
+@snake_router.callback_query(Form_Session.SNAKE_SETTINGS, lambda x: x.data == KB_SNAKE_SETTINGS["size_zone"]["command"])
+async def handle_snake_settings_size_zone(callback: CallbackQuery, state: FSMContext):
+    kb_snake_settings.buttons["size_zone"].change_type()
+    await func_snake_settings(callback.message, state)
+    await callback.answer()
+
+@snake_router.callback_query(Form_Session.SNAKE_SETTINGS, lambda x: x.data == KB_SNAKE_SETTINGS["symbol_zone"]["command"])
+async def handle_snake_settings_symbol_zone(callback: CallbackQuery, state: FSMContext):
+    kb_snake_settings.buttons["symbol_zone"].change_type()
+    await func_snake_settings(callback.message, state)
+    await callback.answer()
+
+@snake_router.callback_query(Form_Session.SNAKE_SETTINGS, lambda x: x.data == KB_SNAKE_SETTINGS["back"]["command"])
+async def handle_snake_settings_back(callback: CallbackQuery, state: FSMContext):
+    await func_snake_menu(callback.message, state)
+    await callback.answer()
+
+# Игра
 @snake_router.message(Form_Session.SNAKE_MENU, F.text == str(KB_SNAKE_MENU["play"]))
 async def handle_snake_play(message: Message, state: FSMContext):
     global snake_task, snake
@@ -132,26 +202,25 @@ async def handle_snake_play(message: Message, state: FSMContext):
 
 @snake_router.callback_query(Form_Session.SNAKE_PLAY, lambda x: x.data == KB_SNAKE_PLAY["back"]["command"])
 async def handle_snake_play_back(callback: CallbackQuery, state: FSMContext):
-    print("Фиксация результата")
     await func_snake_menu(callback.message, state)
     await callback.answer()
 
 @snake_router.callback_query(Form_Session.SNAKE_PLAY, lambda x: x.data in KB_SNAKE_PLAY["up"]["command"])
 async def handle_snake_play_up(callback: CallbackQuery, state: FSMContext):
-    snake.snake_dir = "up"
+    if snake.snake_dir != "down": snake.snake_dir = "up"
     await callback.answer()
 
 @snake_router.callback_query(Form_Session.SNAKE_PLAY, lambda x: x.data in KB_SNAKE_PLAY["down"]["command"])
 async def handle_snake_play_down(callback: CallbackQuery, state: FSMContext):
-    snake.snake_dir = "down"
+    if snake.snake_dir != "up": snake.snake_dir = "down"
     await callback.answer()
 
 @snake_router.callback_query(Form_Session.SNAKE_PLAY, lambda x: x.data in KB_SNAKE_PLAY["left"]["command"])
 async def handle_snake_play_left(callback: CallbackQuery, state: FSMContext):
-    snake.snake_dir = "left"
+    if snake.snake_dir != "right": snake.snake_dir = "left"
     await callback.answer()
 
 @snake_router.callback_query(Form_Session.SNAKE_PLAY, lambda x: x.data in KB_SNAKE_PLAY["right"]["command"])
 async def handle_snake_play_right(callback: CallbackQuery, state: FSMContext):
-    snake.snake_dir = "right"
+    if snake.snake_dir != "left": snake.snake_dir = "right"
     await callback.answer()
