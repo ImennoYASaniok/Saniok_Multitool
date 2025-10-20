@@ -27,6 +27,3 @@ build/
 # OS system files
 .DS_Store
 Thumbs.db
-
-# Wakatime project file
-.wakatime-project
