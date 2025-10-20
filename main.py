@@ -1,17 +1,16 @@
 import logging
-
+from aiohttp import web
 import asyncio
 import os
 from decouple import config
-
-from aiohttp import web
 
 from handlers.handlers_menu import menu_router
 from handlers.handlers_other_menu import other_menu_router
 from handlers.handler_send_message import send_message_router
 from handlers.handler_snake import snake_router
-from bot_session import dp, bot, set_commands, TYPE_TOKEN
-from db import db_session
+from bot_session import dp, bot, set_commands
+from consts import TYPE_TOKEN
+from db.db_session import db_init
 
 LOG_FILE = "server.log"
 logging.basicConfig(
@@ -24,7 +23,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-async def start_bot(app=None):
+def include_routers():
     if menu_router.parent_router is None:
         dp.include_router(menu_router)
     if other_menu_router.parent_router is None:
@@ -34,21 +33,36 @@ async def start_bot(app=None):
     if snake_router.parent_router is None:
         dp.include_router(snake_router)
 
-    if TYPE_TOKEN == "TOKEN":
-        logger.info("Запускается основной бот")
-        await bot.set_webhook(
-            url=config('WEBHOOK_URL'),
-            drop_pending_updates=True
-        )
-        logger.info("Webhook запущен")
-    elif TYPE_TOKEN == "EXTRA_TOKEN":
-        logger.info("Запускается дополнительный бот")
-        await bot.delete_webhook(drop_pending_updates=True)
-        await dp.start_polling(bot)
-    else:
-        raise RuntimeError("Токен не найден")
+async def other_actions():
     await set_commands()
     logger.info("Запуск и преднастройка бота прошла успешно")
+
+async def start_bot(app=None):
+    await db_init()
+    include_routers()
+
+    logger.info("Запускается основной бот")
+    await bot.set_webhook(
+        url=config('WEBHOOK_URL'),
+        drop_pending_updates=True
+    )
+    logger.info("Webhook запущен")
+
+    await other_actions()
+
+async def start_extra_bot(app=None):
+    await db_init()
+    include_routers()
+
+    logger.info("Запускается дополнительный бот")
+    await bot.delete_webhook(drop_pending_updates=True)
+    try:
+        await dp.start_polling(bot)
+    finally:
+        await bot.session.close()
+
+    await other_actions()
+
 
 async def shutdown_bot(app):
     logger.info("Webhook выключается и сессия закрывается")
@@ -68,9 +82,6 @@ async def handle_ping(request):
     return web.Response(text="OK")
 
 if __name__ == "__main__":
-    db_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'db', 'db.sqlite')
-    db_session.my_global_init(os.environ.get('DATABASE_URI', db_file))
-
     if TYPE_TOKEN == "TOKEN":
         logger.info("http порт поднимается")
         port = int(os.environ.get('PORT', 8080))
@@ -80,10 +91,9 @@ if __name__ == "__main__":
         app.on_shutdown.append(shutdown_bot)
         app.router.add_get("/", handle_ping)
         web.run_app(app, host='0.0.0.0', port=port)
-
     elif TYPE_TOKEN == "EXTRA_TOKEN":
         logger.info("Бот работает локально на long_polling")
-        asyncio.run(start_bot())
+        asyncio.run(start_extra_bot())
     else:
         raise RuntimeError("Токен не найден")
     logger.info("Бот полностью функционирует")

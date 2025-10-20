@@ -5,13 +5,9 @@ from aiogram.filters import Command, or_f
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 
-from keyboards.keyboards import kb_other_menu, kb_snake_menu, kb_snake_play, kb_snake_settings
+from keyboards.keyboards import kb_snake_menu, kb_snake_play, kb_snake_settings, KB_OTHER_MENU, KB_SEND_MESSAGE, KB_SNAKE_MENU, KB_SNAKE_PLAY, KB_SNAKE_SETTINGS
 from bot_session import bot, logger, message_process_util, Form_Session
-from bot_session import KB_OTHER_MENU, KB_SEND_MESSAGE, KB_SNAKE_MENU, KB_SNAKE_PLAY, KB_SNAKE_SETTINGS
 from handlers.handlers_other_menu import fun_menu_other
-
-from db.db_session import create_session
-from db.models import Messages as Model_Messages, Users
 
 from random import choice
 

@@ -52,4 +52,4 @@ class MessageProcess:
 
 if __name__ == "__main__":
     input_message = InputMessage()
-    input_message.input_message("snake_play", "handlers/messages.json")
+    input_message.input_message("messages_menu", "handlers/messages.json")
