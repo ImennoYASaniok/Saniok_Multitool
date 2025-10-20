@@ -1,5 +1,32 @@
+# IDE / Editors
 .idea/
+.vscode/
+*.iml
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python cache / build files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+*.egg-info/
+dist/
+build/
+
+# Logs
+*.log
+
+# Environment / Secrets
 .env
-db/db.sqlite
-server.log
-consts.py
+
+# OS system files
+.DS_Store
+Thumbs.db
+
+# Wakatime project file
+.wakatime-project
