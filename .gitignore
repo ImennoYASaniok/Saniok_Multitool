@@ -23,6 +23,8 @@ build/
 
 # Environment / Secrets
 .env
+*.key
+*.pem
 
 # OS system files
 .DS_Store
